@@ -31,8 +31,9 @@ def getNearestNeighbours(trainingSet, testPoint, k):
 
 def euclideanDistance(testPoint, trainPoint):
     test = np.array(testPoint)
-    train = np.array(trainPoint)
+    train = np.array(trainPoint[1:])
     dist = np.linalg.norm(test - train)
+    # dist = abs(np.sum(test) - np.sum(train))
     return dist
 
 
