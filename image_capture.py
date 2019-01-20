@@ -1,6 +1,4 @@
 # Used https://www.youtube.com/watch?v=1XTqE7LFQjI
-import k_NN
-import checkModel
 import readCSV
 import cv2
 import kaggle_CNN
@@ -13,19 +11,34 @@ alphabet = {0: 'a', 1: 'b', 2:'c', 3: 'd', 4: 'e',
             20: 'u', 21: 'v', 22: 'w', 23: 'x', 24: 'y', 25: 'z'}
 
 trainingSet = readCSV.readCSV('./data_set/train.csv')
-trainingPoints = [i[1:] for i in trainingSet]
-trainingLabels = [i[0] for i in trainingSet]
 model = kaggle_CNN.load_model()
 
+# Parameters
 cap_region_x_begin = 0.5  # start point/total width
 cap_region_y_end = 0.8  # start point/total width
+threshold = 60  # BINARY threshold
+blurValue = 41  # GaussianBlur parameter
+bgSubThreshold = 50
+learningRate = 0
+
 video = cv2.VideoCapture(0)
+noBackground = 0
+
+
+def removeBG(frame):
+    fgmask = bgModel.apply(frame, learningRate=learningRate)
+    # kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    # res = cv2.morphologyEx(fgmask, cv2.MORPH_OPEN, kernel)
+
+    kernel = np.ones((3, 3), np.uint8)
+    fgmask = cv2.erode(fgmask, kernel, iterations=1)
+    res = cv2.bitwise_and(frame, frame, mask=fgmask)
+    return res
+
 
 while True:
     #3. Create a frame object
     check, frame = video.read()
-
-    # print(frame) #Representing image
 
     #6. Converting to grayscale
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -38,19 +51,22 @@ while True:
 
     #7. For playing
     key=cv2.waitKey(1)
+    if noBackground:
+        gray = removeBG(gray)
+        #9. For getting only info from square region
+        img = gray[0:560, gray.shape[1] - 560:gray.shape[1]]
+        cv2.imshow("hand", img)
+        small = cv2.resize(img, (0, 0), fx=0.05, fy=0.05)  # resize image to 240 x 240 px
+        hand_pixels = small.flatten()
+        if key == ord('a'):
+            label = kaggle_CNN.run_model(model, np.array([hand_pixels]))
+            print(alphabet[label])
 
-    #9. For getting only info from square region
-    img = gray[0:560, gray.shape[1] - 560:gray.shape[1]]
-    cv2.imshow("hand", img)
-    small = cv2.resize(img, (0, 0), fx=0.05, fy=0.05)  # resize image to 240 x 240 px
-    hand_pixels = small.flatten()
     if key == ord('q'):
         break
-    elif key == ord('a'):
-        label = kaggle_CNN.run_model(model, np.array([hand_pixels]))
-        # label = run_model(hand_pixels)
-        print(alphabet[label])
-
+    elif key == ord('b'):
+        bgModel = cv2.createBackgroundSubtractorMOG2(0, bgSubThreshold)
+        noBackground = 1
 #2. Shutdown the camera
 video.release()
 
